@@ -17,3 +17,10 @@ git remote add origin https://github.com/JustinSparrrow/Beyond-End-of-Journey.gi
 git pull --rebase origin main
 git push -u origin master
 ```
+下次使用时要先拉取再上传
+```
+git add .
+git commit -m "注释说明"
+git pull --rebase origin main
+git push -u origin master
+```
