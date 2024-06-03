@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: 45c3165c95cfc4d33b24a6d84560a3eb
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences:
+  - dialoguePanel: {fileID: 188050, guid: b06f0e6c1dfa4356ac918da1bb32c603, type: 3}
+  - dialogueText: {instanceID: 0}
+  - promptText: {instanceID: 0}
+  - taskPanel: {instanceID: 0}
+  - taskDialogueText: {instanceID: 0}
+  - acceptButton: {instanceID: 0}
+  - declineButton: {instanceID: 0}
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
