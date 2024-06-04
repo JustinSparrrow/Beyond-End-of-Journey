@@ -22,7 +22,12 @@ public class ArrowControl : MonoBehaviour
 
     void Start()
     {
+        if(GetComponent<Rigidbody2D>() == null)
+        {
+            gameObject.AddComponent<Rigidbody2D>();
+        }
         m_rigidbody = GetComponent<Rigidbody2D>(); // 获取Rigidbody2D组件
+        m_rigidbody.gravityScale = 0f; // 设置重力缩放为0
     }
 
     void Update()

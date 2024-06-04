@@ -150,7 +150,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fa1dc34b5135c1e489835ed53b333b0c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_arrowPrefab: {fileID: 4641617906904022790, guid: d4f69ea2fb9bc7742bb61465a363d7e4, type: 3}
+  m_arrowPrefab: {fileID: 1894421860445456370, guid: 05b93a29c2a8e784c95969b08391763b, type: 3}
   verticalOffset: 0.7
   m_attackBeginClip: {fileID: 8300000, guid: b2edfd40873655249ba0e01a5cf705be, type: 3}
   m_attackOnClip: {fileID: 8300000, guid: ae904c7305df7344d86b2092c0cb3a26, type: 3}

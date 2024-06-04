@@ -26,6 +26,8 @@ public class Constant : MonoBehaviour
     public GameObject flameStream; //火焰爆发特效
     public GameObject sparksPrefab; //火花特效
     public GameObject fireBallPrefab; //大火球
+    public GameObject bigSplashPrefab; //水花迸溅
+    public GameObject dustExplosionPrefab; //灰尘爆炸
 
     void Awake()
     {

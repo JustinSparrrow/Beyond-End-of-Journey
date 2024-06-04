@@ -29,7 +29,6 @@ public class PlayerControl : MonoBehaviour
     void Update()
     {
         Vector3 mousePosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);// 获取鼠标点击位置在世界坐标系中的位置
-        RaycastHit2D hit;
         GameObject hittenObject = null;
 
         RaycastHit2D[] hits = RayCastUtil.CircleHit(new Vector2(mousePosition.x, mousePosition.y), 0.15f, Constant.unitLayerMask);
@@ -55,32 +54,6 @@ public class PlayerControl : MonoBehaviour
 
             m_hoverCircle.SetActive(false);
         }
-
-        /*
-        if ((hit = Physics2D.Raycast(new Vector2(mousePosition.x, mousePosition.y), Vector2.zero))  && 
-            ((1 << hit.collider.gameObject.layer) & Constant.unitLayerMask) != 0) // 如果射线与碰撞器相交，且为单位层级
-        {
-            hittenObject = hit.collider.gameObject;
-            ShowHoverUnit(hittenObject);// 显示悬停圈 
-            if (m_selectForSpell)
-                MouseCursorControl.instance.setMouseCursorSprite(hittenObject.layer, MouseCursorControl.MouseCursorType.Target); //命中物体，选择物体的层级
-            else
-                MouseCursorControl.instance.setMouseCursorSprite(hittenObject.layer, MouseCursorControl.MouseCursorType.Selection); //命中物体，选择物体的层级
-            if (Input.GetMouseButtonDown(0) && !m_selectForSpell)
-            {
-                SetSelectUnit(hittenObject); //设置选中
-            }
-        }
-        else
-        {
-            if(m_selectForSpell)
-                MouseCursorControl.instance.setMouseCursorSprite(Constant.neutralLayer, MouseCursorControl.MouseCursorType.Target); //射线不命中物体，默认选中中立
-            else
-                MouseCursorControl.instance.setMouseCursorSprite(Constant.neutralLayer, MouseCursorControl.MouseCursorType.Selection); //射线不命中物体，默认选中中立
-
-            m_hoverCircle.SetActive(false);
-        }
-        */
 
         //下面的代码都需要m_selectedUnit不为空，上面都不需要
         if (m_selectedUnit == null)
@@ -120,14 +93,12 @@ public class PlayerControl : MonoBehaviour
                     m_selectForSpell = false;
                     selectedUnitControl.opProps.m_targetPosition = mousePosition;  // 设置目标地点
                     selectedUnitControl.ReadyToSpell(m_selectedSpell);
-                    selectedUnitControl.ChangeOpType(UnitControl.OperationType.Spell);
                 }
                 else if (hittenObject && (m_selectedSpell.m_acceptLayerMask & (1 << hittenObject.layer)) != 0) //接受单位为目标
                 {
                     m_selectForSpell = false;
                     selectedUnitControl.opProps.m_operationTarget = hittenObject; // 设置目标单位
                     selectedUnitControl.ReadyToSpell(m_selectedSpell);
-                    selectedUnitControl.ChangeOpType(UnitControl.OperationType.Spell);
                 }
                 else
                 {
@@ -224,7 +195,15 @@ public class PlayerControl : MonoBehaviour
 
     void readyToSpell(UnitControl.Spell spell)
     {
-        m_selectedSpell = spell;
-        m_selectForSpell = true;
+        if(spell.m_acceptLayerMask == 0) //无目标技能，直接准备释放
+        {
+            UnitControl selectedUnitConrol = m_selectedUnit.GetComponent<UnitControl>();
+            selectedUnitConrol.ReadyToSpell(spell);
+        }
+        else //有目标指定技能
+        {
+            m_selectedSpell = spell;
+            m_selectForSpell = true;
+        }
     }
 }

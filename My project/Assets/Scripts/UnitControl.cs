@@ -64,7 +64,7 @@ public class UnitControl : MonoBehaviour
         public float m_damage, m_range, m_attackInterval, m_anticipation, m_recovery; // 攻击伤害、射程、攻击间隔、出手前摇、后摇
         public float m_health, m_attackCooldown = 0f, m_anti_time = 0f, m_reco_time = 0f;
         public bool m_readyToAttack = false, m_onRecovering = false, m_onDead = false;
-        public CombatProperties(AttackType attackType = AttackType.Ranged, float maxnHealth = 100f, float birthHealth = -1, float armor = 0, 
+        public CombatProperties(AttackType attackType = AttackType.Ranged, float maxnHealth = 10000f, float birthHealth = -1, float armor = 0, 
             float damage = 10f, float range = 3.0f, float attackInterval = 1f, float autoHealingSpeed = 1f, float warningRadius = 4.0f, float anticipation = 0.1f, 
             float recovery = 0.4f)
         {
@@ -96,7 +96,7 @@ public class UnitControl : MonoBehaviour
 
     public class Spell //: MonoBehaviour //法术基类
     {
-        public float m_hit, m_anticipation, m_range;
+        public float m_hit, m_anticipation, m_range, m_cooldown, m_currentCD = 0;
         public int m_level = 1, m_acceptLayerMask;
         // 不带参数的方法
         public virtual void Task(UnitControl ctrl)
@@ -126,6 +126,7 @@ public class UnitControl : MonoBehaviour
                 m_acceptLayerMask = Constant.enemyLayerMask;
                 m_anticipation = 1.0f;
                 m_range = 6.0f;
+                m_cooldown = 10.0f;
             }
 
             public override void Task(UnitControl ctrl, GameObject target)
@@ -133,7 +134,7 @@ public class UnitControl : MonoBehaviour
                 // 实现带GameObject参数的FireSpell效果
                 Debug.Log($"Casting Fire Spell targeting {target.name}.");
                 ctrl.AttackOn(target, 50);
-                Constant.LaunchParticle(Constant.instance.plasmaExplosionPrefabs, target.transform.position);
+                Constant.LaunchParticle(Constant.instance.dustExplosionPrefab, target.transform.position);
             }
         }
 
@@ -145,6 +146,7 @@ public class UnitControl : MonoBehaviour
                 m_acceptLayerMask = Constant.groundLayerMask;
                 m_anticipation = 1.0f;
                 m_range = 6.0f;
+                m_cooldown = 10.0f;
             }
 
             public override void Task(UnitControl ctrl, Vector2 targetPosition)
@@ -152,7 +154,47 @@ public class UnitControl : MonoBehaviour
                 // 实现带Vector2参数的FireSpell效果
                 GameObject waveObject = Instantiate(Constant.instance.fireBallPrefab, ctrl.m_rigidbody.position + Vector2.up * 0.5f, Quaternion.identity);
                 waveObject.GetComponent<ShockWaveControl>().Init(ctrl.gameObject, targetPosition, Constant.enermyMaskDictionary[ctrl.gameObject.layer],
-                    2.0f, 50.0f, 5.0f);
+                    2.0f, 30.0f, 4.0f, 60.0f);
+            }
+        }
+        public class TrampleSpell : Spell
+        {
+            public TrampleSpell()
+            {
+                m_acceptLayerMask = 0;
+                m_anticipation = 1.0f;
+                m_range = 6.0f;
+                m_cooldown = 10.0f;
+            }
+
+            public override void Task(UnitControl ctrl)
+            {
+                // 实现带Vector2参数的FireSpell效果
+                RaycastHit2D[] hits = RayCastUtil.CircleHit(ctrl.transform.position, 3.5f, Constant.enermyMaskDictionary[ctrl.gameObject.layer]);
+                Constant.LaunchParticle(Constant.instance.plasmaExplosionPrefabs, ctrl.transform.position);
+                if (hits == null)
+                {
+                    return;
+                }
+                foreach(RaycastHit2D hit in hits)
+                {
+                    GameObject obj = hit.collider.gameObject;
+                    UnitControl targetControl = obj.GetComponent<UnitControl>();
+                    if (targetControl == null || targetControl.combatProps.m_health <= 0) continue;
+                    // 计算击退方向
+                    //Vector2 direction = (ctrl.transform.position - obj.transform.position).normalized;
+                    Vector2 direction = (obj.transform.position - ctrl.transform.position).normalized;
+
+                    // 获取Rigidbody2D组件
+                    Rigidbody2D rb = obj.GetComponent<Rigidbody2D>();
+                    if (rb != null)
+                    {
+                        rb.AddForce(direction * 20.0f, ForceMode2D.Impulse); // 应用击退力
+                    }
+                    targetControl.combatProps.m_onRecovering = true;
+                    targetControl.combatProps.m_reco_time = 0.2f;
+                    ctrl.AttackOn(obj, 50.0f);
+                }
             }
         }
     }
@@ -207,6 +249,7 @@ public class UnitControl : MonoBehaviour
 
         spellProps.m_spellDictionary[KeyCode.Q] = new SpellInfo.FireSpell();
         spellProps.m_spellDictionary[KeyCode.W] = new SpellInfo.IceSpell();
+        spellProps.m_spellDictionary[KeyCode.E] = new SpellInfo.TrampleSpell();
     }
 
     // Update is called once per frame
@@ -355,8 +398,14 @@ public class UnitControl : MonoBehaviour
             ChangeOpType(OperationType.Stop);
             return;
         }
-
-        if(MathUtil.Distance(this.gameObject, opProps.m_operationTarget) > combatProps.m_range)
+        float targetDistance = MathUtil.Distance(this.gameObject, opProps.m_operationTarget); //和目标的距离
+        if(targetDistance > combatProps.m_warningRadius) //超出警戒半径
+        {
+            opProps.m_operationTarget = null; 
+            ChangeOpType(OperationType.Stop);
+            return;
+        }
+        if (targetDistance > combatProps.m_range)
         {
             opProps.m_targetPosition = opProps.m_operationTarget.transform.position;
             MoveOperation(); //距离不够，移动
@@ -413,8 +462,10 @@ public class UnitControl : MonoBehaviour
         if(spellProps.m_currentSpell == null)
         {
             Debug.Log("spell null");
+            ChangeOpType(OperationType.Stop);
+            return;
         }
-        Debug.Log("m_acceptLayerMask, groundLayerMask = " + spellProps.m_currentSpell.m_acceptLayerMask + " , " + Constant.groundLayerMask);
+
         if((spellProps.m_currentSpell.m_acceptLayerMask &  Constant.groundLayerMask) != 0) //地点为目标
         {
             if (MathUtil.Distance(this.gameObject.transform.position, spellProps.m_spellTargetPosition) > spellProps.m_currentSpell.m_range)
@@ -423,8 +474,13 @@ public class UnitControl : MonoBehaviour
                 return;
             }
         }
-        else
+        else if((spellProps.m_currentSpell.m_acceptLayerMask & Constant.unitLayerMask) != 0) //单位为目标
         {
+            if(spellProps.m_spellTarget == null)
+            {
+                ChangeOpType(OperationType.Stop);
+                return;
+            }
             if (MathUtil.Distance(this.gameObject, spellProps.m_spellTarget) > spellProps.m_currentSpell.m_range)
             {
                 opProps.m_targetPosition = opProps.m_operationTarget.transform.position;
@@ -477,9 +533,14 @@ public class UnitControl : MonoBehaviour
     public void ChangeAnimation(AnimationType animationType) //切换动画
     {
         if (m_animator == null || m_animationType == animationType) return;
-        String cmd = animationType_str_dic[m_animationType] + "To" + animationType_str_dic[animationType]; //触发器指令
-        m_animator.SetTrigger(cmd);
-        m_animationType = animationType;
+        if(animationType == AnimationType.Die)
+            m_animator.SetTrigger("Die");
+        else
+        {
+            String cmd = animationType_str_dic[m_animationType] + "To" + animationType_str_dic[animationType]; //触发器指令
+            m_animator.SetTrigger(cmd);
+            m_animationType = animationType;
+        }
     }
 
     public void ChangeOpType(OperationType operationType)
@@ -542,7 +603,6 @@ public class UnitControl : MonoBehaviour
 
     void Death() //血量为0死亡
     {
-        //Debug.Log(name + " death");
         PlayAudioClip(m_deathClip);
         gameObject.layer = 2;
         if (gameObject.GetComponent<BoxCollider2D>())
